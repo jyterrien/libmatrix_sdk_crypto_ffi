@@ -22,13 +22,20 @@
         <native.lib.dir>${project.build.outputDirectory}/native</native.lib.dir>
     </properties>
 
-    <dependencyManagement>
         <dependencies>
-        </dependencies>
-    </dependencyManagement>
-
-    <dependencies>
-    </dependencies>
+  <dependency>
+    <groupId>org.junit.jupiter</groupId>
+    <artifactId>junit-jupiter</artifactId>
+    <version>5.13.4</version> <!-- ou plus récent -->
+    <scope>test</scope>
+  </dependency>
+  <dependency>
+    <groupId>com.fasterxml.jackson.core</groupId>
+    <artifactId>jackson-databind</artifactId>
+    <version>2.19.2</version> <!-- ou plus récent -->
+    <scope>test</scope>
+  </dependency>
+          </dependencies>
 
     <build>
         <plugins>
@@ -52,6 +59,7 @@
                 <version>3.5.0</version>
                 <executions>
                     <execution>
+                        <?m2e execute onConfiguration?>
                         <id>clone-matrix-rust-sdk</id>
                         <phase>generate-sources</phase>
                         <goals>
@@ -75,6 +83,7 @@
 
                     <!-- 2. Compiler le crate matrix-sdk-crypto-ffi avec cargo -->
                     <execution>
+                        <?m2e execute onConfiguration?>
                         <id>cargo-build-crypto-ffi</id>
                         <phase>generate-sources</phase>
                         <goals>
@@ -99,6 +108,7 @@
 
                     <!-- 3. Générer les bindings Java via uniffi-bindgen-java -->
                     <execution>
+                        <?m2e execute onConfiguration?>
                         <id>generate-java-bindings</id>
                         <phase>generate-sources</phase>
                         <goals>
@@ -158,14 +168,15 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${surefire-plugin.version}</version>
                 <configuration>
-                    <argLine>@{argLine}</argLine>
+		    <!-- Panama (java.lang.foreign) : autorise l'accès natif -->
+		    <argLine>--enable-native-access=ALL-UNNAMED</argLine>
                     <systemPropertyVariables>
-                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+                        <!-- <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager> -->
                         <maven.home>${maven.home}</maven.home>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
-        </plugins>
+            </plugins>
     </build>
 
 </project>
