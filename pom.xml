@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.matrix.rust.sdk</groupId>
+    <artifactId>libmatrix_sdk_crypto_ffi</artifactId>
+    <version>0.19.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <compiler-plugin.version>3.15.0</compiler-plugin.version>
+        <maven.compiler.release>25</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <skipITs>true</skipITs>
+        <surefire-plugin.version>3.5.6</surefire-plugin.version>
+        <matrix-rust.version>matrix-sdk-crypto-${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}</matrix-rust.version>
+
+        <!-- Répertoires de travail pour la compilation Rust -->
+        <rust.repo.dir>${project.build.directory}/matrix-rust-sdk</rust.repo.dir>
+        <rust.repo.url>https://github.com/matrix-org/matrix-rust-sdk.git</rust.repo.url>
+        <rust.target.dir>${rust.repo.dir}/target/release</rust.target.dir>
+        <native.lib.dir>${project.build.outputDirectory}/native</native.lib.dir>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+    </dependencies>
+
+    <build>
+        <plugins>
+	      <plugin>
+		<groupId>org.codehaus.mojo</groupId>
+		<artifactId>build-helper-maven-plugin</artifactId>
+		<version>3.7.0</version>
+		<executions>
+		  <execution>
+		    <id>parse-version</id>
+		    <goals>
+		      <goal>parse-version</goal>
+		    </goals>
+		  </execution>
+		</executions>
+	      </plugin>
+            <!-- 1. Cloner le dépôt matrix-rust-sdk si absent -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>clone-matrix-rust-sdk</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>bash</executable>
+                            <arguments>
+                                <argument>-c</argument>
+                                <argument>
+                                    if [ ! -d "${rust.repo.dir}/.git" ]; then
+                                        echo "Clonage de matrix-rust-sdk...";
+                                        git clone --depth 1 --branch ${matrix-rust.version} ${rust.repo.url} "${rust.repo.dir}";
+                                    else
+                                        echo "matrix-rust-sdk déjà présent, skip clone.";
+                                    fi
+                                </argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+
+                    <!-- 2. Compiler le crate matrix-sdk-crypto-ffi avec cargo -->
+                    <execution>
+                        <id>cargo-build-crypto-ffi</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>bash</executable>
+                            <workingDirectory>${rust.repo.dir}</workingDirectory>
+                            <arguments>
+                                <argument>-c</argument>
+                                <argument>
+                                    if [ ! -f "${rust.target.dir}/libmatrix_sdk_crypto_ffi.so" ]; then
+                                        echo "Compilation de matrix-sdk-crypto-ffi...";
+                                        cargo build -p matrix-sdk-crypto-ffi --release;
+                                    else
+                                        echo "libmatrix_sdk_crypto_ffi.so déjà compilée, skip build.";
+                                    fi
+                                </argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+
+                    <!-- 3. Générer les bindings Java via uniffi-bindgen-java -->
+                    <execution>
+                        <id>generate-java-bindings</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>bash</executable>
+                            <workingDirectory>${rust.repo.dir}</workingDirectory>
+                            <arguments>
+                                <argument>-c</argument>
+                                <argument>
+                                    uniffi-bindgen-java generate \
+                                        --out-dir "${project.basedir}/src/main/java" \
+                                        "${rust.target.dir}/libmatrix_sdk_crypto_ffi.so"
+                                </argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- 4. Copier la bibliothèque native dans les ressources du JAR -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>copy-native-lib</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${native.lib.dir}</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${rust.target.dir}</directory>
+                                    <includes>
+                                        <include>libmatrix_sdk_crypto_ffi.so</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${compiler-plugin.version}</version>
+                <configuration>
+                    <parameters>true</parameters>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${surefire-plugin.version}</version>
+                <configuration>
+                    <argLine>@{argLine}</argLine>
+                    <systemPropertyVariables>
+                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+                        <maven.home>${maven.home}</maven.home>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
