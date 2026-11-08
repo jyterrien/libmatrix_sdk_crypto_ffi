@@ -8,7 +8,7 @@ Avant de builder ce projet, les outils suivants doivent être installés sur vot
 
 ### Cargo et la toolchain Rust
 
-`cargo` est nécessaire pour compiler le crate `matrix-sdk-crypto-ffi` depuis le dépôt `matrix-rust-sdk`.
+`cargo` est nécessaire pour compiler le crate `matrix-sdk-crypto-ffi` depuis le dépôt [`matrix-rust-sdk`](https://github.com/matrix-org/matrix-rust-sdk).
 
 **Installation recommandée via Rustup (Ubuntu) :**
 
